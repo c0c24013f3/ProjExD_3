@@ -93,7 +93,8 @@ class Beam:
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん（Birdインスタンス）
         """
-        self.img = pg.image.load("fig/beam.png")
+    
+        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.3)
         self.rct = self.img.get_rect()
         # ビームの中心縦座標 = こうかとんの中心縦座標
         self.rct.centery = bird.rct.centery
@@ -174,8 +175,14 @@ def main():
             if bird.rct.colliderect(bomb.rct):
                 # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 bird.change_img(8, screen)
+                
+                # Game Over 文字表示（練習4）
+                fonto = pg.font.Font(None, 80)
+                txt = fonto.render("Game Over", True, (255, 0, 0))
+                screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
+                
                 pg.display.update()
-                time.sleep(1)
+                time.sleep(2)  # 2秒間表示
                 return
 
         key_lst = pg.key.get_pressed()
