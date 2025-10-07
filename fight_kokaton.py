@@ -1,7 +1,6 @@
 import os
 import random
 import sys
-import time
 import math
 import pygame as pg
 
@@ -265,7 +264,19 @@ def main():
                     txt = fonto.render("Game Over", True, (255, 0, 0))
                     screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
                     pg.display.update()
-                    time.sleep(2)
+                    
+                    # 替换 time.sleep(2) 的部分开始
+                    game_over_start = pg.time.get_ticks()
+                    while pg.time.get_ticks() - game_over_start < 2000:  # 等待2秒
+                        # 处理事件，避免程序无响应
+                        for event in pg.event.get():
+                            if event.type == pg.QUIT:
+                                pg.quit()
+                                return
+                        pg.display.update()  # 保持画面更新
+                        clock.tick(30)  # 控制帧率
+                    # 替换 time.sleep(2) 的部分结束
+                    
                     return
 
         key_lst = pg.key.get_pressed()
