@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import time
+import math
 import pygame as pg
 
 
@@ -19,7 +20,7 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
     yoko, tate = True, True
     if obj_rct.left < 0 or WIDTH < obj_rct.right:
         yoko = False
-    if obj_rct.top < 0 or HEIGHT < obj_rct.bottom:
+    if obj_rct.top < 0 or HEIGHT < obj_rct.bottom:  # 修正这里：obj.rct → obj_rct
         tate = False
     return yoko, tate
 
@@ -55,6 +56,7 @@ class Bird:
         self.img = __class__.imgs[(+5, 0)]
         self.rct: pg.Rect = self.img.get_rect()
         self.rct.center = xy
+        self.dire = (+5, 0)  # こうかとんの向きを表すタプル
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -81,6 +83,7 @@ class Bird:
             self.rct.move_ip(-sum_mv[0], -sum_mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.img = __class__.imgs[tuple(sum_mv)]
+            self.dire = tuple(sum_mv)  # 移動方向を向きとして保存
         screen.blit(self.img, self.rct)
 
 
@@ -93,14 +96,27 @@ class Beam:
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん（Birdインスタンス）
         """
-        # 使用真正的beam.png
-        self.img = pg.image.load("fig/beam.png")
+        # こうかとんの向きに応じてビームの方向を設定
+        vx, vy = bird.dire
+        
+        # ビームの速度を設定（向きに応じた速度）
+        speed = 5
+        self.vx = vx * speed // 5 if vx != 0 else speed
+        self.vy = vy * speed // 5 if vy != 0 else 0
+        
+        # ビームの回転角度を計算
+        if vx == 0 and vy == 0:  # 静止時は右向き
+            angle = 0
+        else:
+            angle = math.degrees(math.atan2(-vy, vx))
+        
+        # ビーム画像を回転
+        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), angle, 1.0)
         self.rct = self.img.get_rect()
-        # ビームの中心縦座標 = こうかとんの中心縦座標
-        self.rct.centery = bird.rct.centery
-        # ビームの左座標 = こうかとんの右座標
-        self.rct.left = bird.rct.right
-        self.vx, self.vy = +5, 0
+        
+        # こうかとんの向きに応じたビームの初期位置
+        self.rct.centerx = bird.rct.centerx + bird.rct.width * vx // 5
+        self.rct.centery = bird.rct.centery + bird.rct.height * vy // 5
 
     def update(self, screen: pg.Surface):
         """
