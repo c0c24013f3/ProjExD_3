@@ -91,9 +91,9 @@ class Beam:
     def __init__(self, bird: Bird):
         """
         ビーム画像Surfaceを生成する
-        引数 bird：ビームを放つこうかとん（Birdインスタンス） 
+        引数 bird：ビームを放つこうかとん（Birdインスタンス）
         """
-        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.6)
+        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.9)
         self.rct = self.img.get_rect()
         # ビームの中心縦座標 = こうかとんの中心縦座標
         self.rct.centery = bird.rct.centery
@@ -172,8 +172,8 @@ def main():
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
     bomb = Bomb((255, 0, 0), 10)
-    beam = None
-    score = Score()  # Scoreインスタンスを生成
+    beams = []  # ビームを複数扱うためのリスト（beam → beamsに変更）
+    score = Score()
     clock = pg.time.Clock()
     tmr = 0
     while True:
@@ -181,15 +181,15 @@ def main():
             if event.type == pg.QUIT:
                 return
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                # スペースキー押下でBeamクラスのインスタンス生成
-                beam = Beam(bird)            
+                # スペースキー押下でBeamインスタンスを生成しリストに追加
+                beams.append(Beam(bird))
         screen.blit(bg_img, [0, 0])
         
-        # 爆弾とビームの衝突判定
-        if bomb is not None and beam is not None:
-            if beam.rct.colliderect(bomb.rct):
-                # 衝突したらビームと爆弾を消滅
-                beam = None
+        # 爆弾とビームの衝突判定（複数ビーム対応）
+        for beam in beams[:]:  # リストのコピーに対してイテレーション
+            if bomb is not None and beam.rct.colliderect(bomb.rct):
+                # 衝突したらビームをリストから削除し爆弾を消滅
+                beams.remove(beam)
                 bomb = None
                 # こうかとんが喜ぶエフェクト
                 bird.change_img(6, screen)
@@ -212,9 +212,12 @@ def main():
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
         
-        # ビームの更新（Noneチェック）
-        if beam is not None:
+        # ビームの更新（複数ビーム対応）
+        for beam in beams[:]:
             beam.update(screen)
+            # 画面外に出たビームを削除
+            if check_bound(beam.rct) != (True, True):
+                beams.remove(beam)
         
         # 爆弾の更新（Noneチェック）
         if bomb is not None:
