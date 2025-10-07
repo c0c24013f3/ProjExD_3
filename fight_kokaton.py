@@ -93,7 +93,8 @@ class Beam:
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん（Birdインスタンス）
         """
-        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.9)
+        # 使用真正的beam.png
+        self.img = pg.image.load("fig/beam.png")
         self.rct = self.img.get_rect()
         # ビームの中心縦座標 = こうかとんの中心縦座標
         self.rct.centery = bird.rct.centery
@@ -124,6 +125,7 @@ class Bomb:
         self.img = pg.Surface((2*rad, 2*rad))
         pg.draw.circle(self.img, color, (rad, rad), rad)
         self.img.set_colorkey((0, 0, 0))
+        self.img = pg.transform.rotozoom(self.img, 0, 0.9)  # 爆弾サイズを0.9倍に
         self.rct = self.img.get_rect()
         self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
         self.vx, self.vy = +5, +5
@@ -140,6 +142,38 @@ class Bomb:
             self.vy *= -1
         self.rct.move_ip(self.vx, self.vy)
         screen.blit(self.img, self.rct)
+
+
+class Explosion:
+    """
+    爆発エフェクトに関するクラス
+    """
+    def __init__(self, center: tuple[int, int]):
+        """
+        爆発エフェクトの初期設定
+        引数 center：爆発が発生する中心座標
+        """
+        # 爆発画像の読み込みと反転処理
+        self.img1 = pg.image.load("fig/explosion.gif")
+        self.img2 = pg.transform.flip(self.img1, True, False)  # 左右反転
+        self.img3 = pg.transform.flip(self.img1, False, True)  # 上下反転
+        self.img4 = pg.transform.flip(self.img1, True, True)   # 上下左右反転
+        
+        self.imgs = [self.img1, self.img2, self.img3, self.img4]
+        self.rct = self.img1.get_rect()
+        self.rct.center = center
+        self.life = 20  # 爆発の表示時間
+
+    def update(self, screen: pg.Surface):
+        """
+        爆発エフェクトを更新する
+        引数 screen：画面Surface
+        """
+        if self.life > 0:
+            # 爆発時間に応じて画像を切り替え
+            img_index = (self.life // 5) % len(self.imgs)
+            screen.blit(self.imgs[img_index], self.rct)
+            self.life -= 1
 
 
 class Score:
@@ -172,7 +206,8 @@ def main():
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
     bomb = Bomb((255, 0, 0), 10)
-    beams = []  # ビームを複数扱うためのリスト（beam → beamsに変更）
+    beams = []
+    explosions = []  # 爆発エフェクトのリスト
     score = Score()
     clock = pg.time.Clock()
     tmr = 0
@@ -190,6 +225,8 @@ def main():
             if bomb is not None and beam.rct.colliderect(bomb.rct):
                 # 衝突したらビームをリストから削除し爆弾を消滅
                 beams.remove(beam)
+                # 爆発エフェクトを追加
+                explosions.append(Explosion(bomb.rct.center))
                 bomb = None
                 # こうかとんが喜ぶエフェクト
                 bird.change_img(6, screen)
@@ -222,6 +259,13 @@ def main():
         # 爆弾の更新（Noneチェック）
         if bomb is not None:
             bomb.update(screen)
+            
+        # 爆発エフェクトの更新
+        for explosion in explosions[:]:
+            explosion.update(screen)
+            # 爆発時間が終わったエフェクトを削除
+            if explosion.life <= 0:
+                explosions.remove(explosion)
             
         # スコアの更新と表示
         score.update(screen)
