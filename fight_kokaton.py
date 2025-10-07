@@ -91,10 +91,9 @@ class Beam:
     def __init__(self, bird: Bird):
         """
         ビーム画像Surfaceを生成する
-        引数 bird：ビームを放つこうかとん（Birdインスタンス）
+        引数 bird：ビームを放つこうかとん（Birdインスタンス） 
         """
-    
-        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.3)
+        self.img = pg.transform.rotozoom(pg.image.load("fig/beam.png"), 0, 0.6)
         self.rct = self.img.get_rect()
         # ビームの中心縦座標 = こうかとんの中心縦座標
         self.rct.centery = bird.rct.centery
@@ -143,13 +142,38 @@ class Bomb:
         screen.blit(self.img, self.rct)
 
 
+class Score:
+    """
+    スコアを表示するクラス
+    """
+    def __init__(self):
+        """
+        スコア表示の初期設定
+        """
+        self.fonto = pg.font.Font(None, 50)
+        self.color = (0, 0, 255)  # 青色
+        self.score = 0
+        self.img = self.fonto.render(f"Score: {self.score}", 0, self.color)
+        self.rct = self.img.get_rect()
+        self.rct.center = (100, 50)  # 画面左上
+
+    def update(self, screen: pg.Surface):
+        """
+        スコアを更新して表示する
+        引数 screen：画面Surface
+        """
+        self.img = self.fonto.render(f"Score: {self.score}", 0, self.color)
+        screen.blit(self.img, self.rct)
+
+
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))    
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
     bomb = Bomb((255, 0, 0), 10)
-    beam = None  # ゲーム初期化時にはビームは存在しない
+    beam = None
+    score = Score()  # Scoreインスタンスを生成
     clock = pg.time.Clock()
     tmr = 0
     while True:
@@ -167,22 +191,22 @@ def main():
                 # 衝突したらビームと爆弾を消滅
                 beam = None
                 bomb = None
-                # こうかとんが喜ぶエフェクト（練習3）
-                bird.change_img(6, screen)  # 喜び画像
+                # こうかとんが喜ぶエフェクト
+                bird.change_img(6, screen)
+                # スコアを増加
+                score.score += 1
         
         # こうかとんと爆弾の衝突判定
         if bomb is not None:
             if bird.rct.colliderect(bomb.rct):
                 # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 bird.change_img(8, screen)
-                
-                # Game Over 文字表示（練習4）
+                # Game Over 文字表示
                 fonto = pg.font.Font(None, 80)
                 txt = fonto.render("Game Over", True, (255, 0, 0))
                 screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                
                 pg.display.update()
-                time.sleep(2)  # 2秒間表示
+                time.sleep(2)
                 return
 
         key_lst = pg.key.get_pressed()
@@ -196,6 +220,8 @@ def main():
         if bomb is not None:
             bomb.update(screen)
             
+        # スコアの更新と表示
+        score.update(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
