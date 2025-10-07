@@ -8,6 +8,7 @@ import pygame as pg
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
+NUM_OF_BOMBS = 5  # 爆弾の数を表す定数
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -23,8 +24,6 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
     if obj_rct.top < 0 or HEIGHT < obj_rct.bottom:  # 修正这里：obj.rct → obj_rct
         tate = False
     return yoko, tate
-
-
 class Bird:
     """
     ゲームキャラクター（こうかとん）に関するクラス
@@ -132,19 +131,21 @@ class Bomb:
     """
     爆弾に関するクラス
     """
-    def __init__(self, color: tuple[int, int, int], rad: int):
+    def __init__(self):
         """
-        引数に基づき爆弾円Surfaceを生成する
-        引数1 color：爆弾円の色タプル
-        引数2 rad：爆弾円の半径
+        爆弾円Surfaceを生成する
         """
-        self.img = pg.Surface((2*rad, 2*rad))
+        color = (255, 0, 0)  # 赤色固定
+        rad = 20  # 固定サイズ
+        
+        # 爆弾画像の生成
+        self.img = pg.Surface((2*rad, 2*rad), pg.SRCALPHA)  # 透明Surface
         pg.draw.circle(self.img, color, (rad, rad), rad)
-        self.img.set_colorkey((0, 0, 0))
+        
         self.img = pg.transform.rotozoom(self.img, 0, 0.9)  # 爆弾サイズを0.9倍に
         self.rct = self.img.get_rect()
         self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
-        self.vx, self.vy = +5, +5
+        self.vx, self.vy = +5, +5  # 固定方向
 
     def update(self, screen: pg.Surface):
         """
@@ -158,7 +159,6 @@ class Bomb:
             self.vy *= -1
         self.rct.move_ip(self.vx, self.vy)
         screen.blit(self.img, self.rct)
-
 
 class Explosion:
     """
@@ -221,7 +221,8 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))    
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
-    bomb = Bomb((255, 0, 0), 10)
+    # NUM_OF_BOMBS個のBombインスタンスを要素とするリストを生成
+    bombs = [Bomb() for _ in range(NUM_OF_BOMBS)]
     beams = []
     explosions = []  # 爆発エフェクトのリスト
     score = Score()
@@ -236,31 +237,36 @@ def main():
                 beams.append(Beam(bird))
         screen.blit(bg_img, [0, 0])
         
-        # 爆弾とビームの衝突判定（複数ビーム対応）
-        for beam in beams[:]:  # リストのコピーに対してイテレーション
-            if bomb is not None and beam.rct.colliderect(bomb.rct):
-                # 衝突したらビームをリストから削除し爆弾を消滅
-                beams.remove(beam)
-                # 爆発エフェクトを追加
-                explosions.append(Explosion(bomb.rct.center))
-                bomb = None
-                # こうかとんが喜ぶエフェクト
-                bird.change_img(6, screen)
-                # スコアを増加
-                score.score += 1
+        # 爆弾とビームの衝突判定（複数爆弾対応）
+        for bomb in bombs[:]:  # 爆弾リストのコピーに対してイテレーション
+            for beam in beams[:]:  # ビームリストのコピーに対してイテレーション
+                if bomb is not None and beam is not None:
+                    if beam.rct.colliderect(bomb.rct):
+                        # 衝突したらビームをリストから削除
+                        beams.remove(beam)
+                        # 爆発エフェクトを追加
+                        explosions.append(Explosion(bomb.rct.center))
+                        # 爆弾をリストから削除
+                        bombs.remove(bomb)
+                        # こうかとんが喜ぶエフェクト
+                        bird.change_img(6, screen)
+                        # スコアを増加
+                        score.score += 1
+                        break  # このビームは削除されたので次のビームへ
         
-        # こうかとんと爆弾の衝突判定
-        if bomb is not None:
-            if bird.rct.colliderect(bomb.rct):
-                # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
-                bird.change_img(8, screen)
-                # Game Over 文字表示
-                fonto = pg.font.Font(None, 80)
-                txt = fonto.render("Game Over", True, (255, 0, 0))
-                screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-                pg.display.update()
-                time.sleep(2)
-                return
+        # こうかとんと爆弾の衝突判定（複数爆弾対応）
+        for bomb in bombs[:]:
+            if bomb is not None:
+                if bird.rct.colliderect(bomb.rct):
+                    # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
+                    bird.change_img(8, screen)
+                    # Game Over 文字表示
+                    fonto = pg.font.Font(None, 80)
+                    txt = fonto.render("Game Over", True, (255, 0, 0))
+                    screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
+                    pg.display.update()
+                    time.sleep(2)
+                    return
 
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
@@ -272,9 +278,10 @@ def main():
             if check_bound(beam.rct) != (True, True):
                 beams.remove(beam)
         
-        # 爆弾の更新（Noneチェック）
-        if bomb is not None:
-            bomb.update(screen)
+        # 爆弾の更新（複数爆弾対応）
+        for bomb in bombs:
+            if bomb is not None:
+                bomb.update(screen)
             
         # 爆発エフェクトの更新
         for explosion in explosions[:]:
